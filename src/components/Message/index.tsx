@@ -1,22 +1,25 @@
 import { useEffect, useState, KeyboardEvent } from "react";
 import chatService from "@/utils/chatService";
 import { ActionIcon, Textarea } from "@mantine/core";
-import {
-  clearMessage,
-  getMessage,
-  updateMessage,
-} from "@/utils/chatStorage";
+import * as chatStorage from "@/utils/chatStorage";
 import { IconSend, IconSendOff, IconEraser } from "@tabler/icons-react";
 
 import { MessageList } from "@/types";
 import clsx from "clsx";
-const LOCAL_KEY = "ai_demo";
 
-export const Message = () => {
+type Props = {
+  sessionId: string;
+};
+
+export const Message = ({ sessionId }: Props) => {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
-  const [chatList, setChatList] = useState<MessageList>([]);
+  const [message, setMessage] = useState<MessageList>([]);
 
+  const updateMessage = (msg: MessageList) => {
+    setMessage(msg);
+    chatStorage.updateMessage(sessionId, msg);
+  };
   chatService.actions = {
     onCompleting: (sug) => setSuggestion(sug),
     onCompleted: () => {
@@ -25,12 +28,14 @@ export const Message = () => {
   };
 
   useEffect(() => {
-    const logs = getMessage(LOCAL_KEY);
-    setChatList(logs);
-  }, []);
+    const msg = chatStorage.getMessage(sessionId);
+    setMessage(msg);
+    if (loading) {
+      chatService.cancel();
+    }
+  }, [sessionId]);
   const onClear = () => {
-    clearMessage(LOCAL_KEY);
-    setChatList([]);
+    updateMessage([]);
   };
   const onKeyDown = (evt: KeyboardEvent<HTMLTextAreaElement>) => {
     if (evt.keyCode === 13 && !evt.shiftKey) {
@@ -41,12 +46,12 @@ export const Message = () => {
 
   const setSuggestion = (suggestion: string) => {
     if (suggestion === "") return;
-    const len = chatList.length;
-    const lastMessage = len ? chatList[len - 1] : null;
+    const len = message.length;
+    const lastMessage = len ? message[len - 1] : null;
     let newList: MessageList = [];
     if (lastMessage?.role === "assistant") {
       newList = [
-        ...chatList.slice(0, len - 1),
+        ...message.slice(0, len - 1),
         {
           ...lastMessage,
           content: suggestion,
@@ -54,7 +59,7 @@ export const Message = () => {
       ];
     } else {
       newList = [
-        ...chatList,
+        ...message,
         {
           role: "assistant",
           content: suggestion,
@@ -65,8 +70,8 @@ export const Message = () => {
   };
 
   const setMessages = (msg: MessageList) => {
-    setChatList(msg);
-    updateMessage(LOCAL_KEY, msg);
+    setMessage(msg);
+    chatStorage.updateMessage(sessionId, msg);
   };
 
   const onSubmit = () => {
@@ -75,7 +80,7 @@ export const Message = () => {
     }
     if (!prompt.trim()) return;
     let list: MessageList = [
-      ...chatList,
+      ...message,
       {
         role: "user",
         content: prompt,
@@ -91,7 +96,7 @@ export const Message = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col items-center">
+    <div className="h-screen flex flex-col items-center w-full">
       <div
         className={clsx([
           "flex-col",
@@ -102,7 +107,7 @@ export const Message = () => {
           "px-8",
         ])}
       >
-        {chatList.map((item, idx) => (
+        {message.map((item, idx) => (
           <div
             key={`${item.role}-${idx}`}
             className={clsx(
@@ -149,7 +154,6 @@ export const Message = () => {
         />
         <ActionIcon
           className="ml-2"
-          // loading={loading}
           onClick={() => onSubmit()}
         >
           {loading ? <IconSendOff /> : <IconSend />}
