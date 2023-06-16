@@ -1,71 +1,96 @@
-import React, { useEffect, useState, KeyboardEvent } from 'react';
-import { getCompletion } from '@/utils/getCompletion';
-import { ActionIcon, Textarea, Button } from '@mantine/core';
-import { MessageList } from '@/types';
-import { clearChatLogs, getChatLogs, updateChatLogs } from '@/utils/chatStorage';
-import { IconSend, IconEraser } from "@tabler/icons-react";
+import { useEffect, useState, KeyboardEvent } from "react";
+import chatService from "@/utils/chatService";
+import { ActionIcon, Textarea } from "@mantine/core";
+import {
+  clearChatLogs,
+  getChatLogs,
+  updateChatLogs,
+} from "@/utils/chatStorage";
+import { IconSend, IconSendOff, IconEraser } from "@tabler/icons-react";
+
+import { MessageList } from "@/types";
 import clsx from "clsx";
-
-const LOCAL_KEY = 'ai_demo'
-
-const Chat = () => {
-  const [prompt, setPrompt] = useState('')
-
-  const [completion, setCompletion] = useState('')
+const LOCAL_KEY = "ai_demo";
+export const Chat = () => {
+  const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [chatList, setChatList] = useState<MessageList>([]);
 
-  const setChatLogs = (logs: MessageList) => {
-    setChatList(logs)
-    updateChatLogs(LOCAL_KEY, logs)
-  }
+  chatService.actions = {
+    onCompleting: (sug) => setSuggestion(sug),
+    onCompleted: () => {
+      setLoading(false);
+    },
+  };
 
+  useEffect(() => {
+    const logs = getChatLogs(LOCAL_KEY);
+    setChatList(logs);
+  }, []);
   const onClear = () => {
     clearChatLogs(LOCAL_KEY);
     setChatList([]);
   };
-
   const onKeyDown = (evt: KeyboardEvent<HTMLTextAreaElement>) => {
     if (evt.keyCode === 13 && !evt.shiftKey) {
       evt.preventDefault();
-      getAIResp();
+      onSubmit();
     }
   };
 
-  const getAIResp = async () => {
-    const list = [
+  const setSuggestion = (suggestion: string) => {
+    if (suggestion === "") return;
+    const len = chatList.length;
+    const lastMessage = len ? chatList[len - 1] : null;
+    let newList: MessageList = [];
+    if (lastMessage?.role === "assistant") {
+      newList = [
+        ...chatList.slice(0, len - 1),
+        {
+          ...lastMessage,
+          content: suggestion,
+        },
+      ];
+    } else {
+      newList = [
+        ...chatList,
+        {
+          role: "assistant",
+          content: suggestion,
+        },
+      ];
+    }
+    setMessages(newList);
+  };
+
+  const setMessages = (msg: MessageList) => {
+    setChatList(msg);
+    updateChatLogs(LOCAL_KEY, msg);
+  };
+
+  const onSubmit = () => {
+    if (loading) {
+      return chatService.cancel();
+    }
+    if (!prompt.trim()) return;
+    let list: MessageList = [
       ...chatList,
       {
-        role: 'user',
-        content: prompt
-      }
+        role: "user",
+        content: prompt,
+      },
     ];
-    setChatLogs(list)
-    const resp = await getCompletion({
+    setMessages(list);
+    setLoading(true);
+    chatService.getStream({
       prompt,
-      history: chatList.slice(-4),
-    })
-    console.log(resp)
-    // @ts-ignore
-    setCompletion(resp.content)
-    setChatLogs([
-      ...list,
-      {
-        role: 'assistant',
-        content: resp.content
-      }
-    ])
-    setPrompt('')
-
-  }
-
-  useEffect(() => {
-    const logs = getChatLogs(LOCAL_KEY)
-    setChatList(logs)
-  }, [])
+      history: list.slice(-6),
+    });
+    setPrompt("");
+  };
 
   return (
-    <div className="h-screen flex flex-col items-center justify-end">
+    <div className="h-screen flex flex-col items-center">
       <div
         className={clsx([
           "flex-col",
@@ -111,27 +136,24 @@ const Chat = () => {
           disabled={loading}
           onClick={() => onClear()}
         >
-          <IconEraser></IconEraser>
+          <IconEraser/>
         </ActionIcon>
         <Textarea
           placeholder="Enter your prompt"
-          className="w-full mr-5"
+          className="w-full"
           value={prompt}
+          disabled={loading}
           onKeyDown={(evt) => onKeyDown(evt)}
-          onChange={(e) => {
-            setPrompt(e.target.value)
-          }}
+          onChange={(evt) => setPrompt(evt.target.value)}
         />
         <ActionIcon
           className="ml-2"
-          loading={loading}
-          onClick={() => getAIResp()}
+          // loading={loading}
+          onClick={() => onSubmit()}
         >
-          <IconSend></IconSend>
+          {loading ? <IconSendOff /> : <IconSend />}
         </ActionIcon>
       </div>
     </div>
   );
 };
-
-export default Chat;
