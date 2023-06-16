@@ -2,16 +2,17 @@ import { useEffect, useState, KeyboardEvent } from "react";
 import chatService from "@/utils/chatService";
 import { ActionIcon, Textarea } from "@mantine/core";
 import {
-  clearChatLogs,
-  getChatLogs,
-  updateChatLogs,
+  clearMessage,
+  getMessage,
+  updateMessage,
 } from "@/utils/chatStorage";
 import { IconSend, IconSendOff, IconEraser } from "@tabler/icons-react";
 
 import { MessageList } from "@/types";
 import clsx from "clsx";
 const LOCAL_KEY = "ai_demo";
-export const Chat = () => {
+
+export const Message = () => {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [chatList, setChatList] = useState<MessageList>([]);
@@ -24,11 +25,11 @@ export const Chat = () => {
   };
 
   useEffect(() => {
-    const logs = getChatLogs(LOCAL_KEY);
+    const logs = getMessage(LOCAL_KEY);
     setChatList(logs);
   }, []);
   const onClear = () => {
-    clearChatLogs(LOCAL_KEY);
+    clearMessage(LOCAL_KEY);
     setChatList([]);
   };
   const onKeyDown = (evt: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -65,7 +66,7 @@ export const Chat = () => {
 
   const setMessages = (msg: MessageList) => {
     setChatList(msg);
-    updateChatLogs(LOCAL_KEY, msg);
+    updateMessage(LOCAL_KEY, msg);
   };
 
   const onSubmit = () => {

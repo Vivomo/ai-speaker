@@ -1,10 +1,10 @@
-import Chat from '@/components/chat';
+import { Message } from '@/components/Message';
 
 export default function Home() {
   return (
     <div
     >
-        <Chat/>
+        <Message/>
     </div>
   )
 }
