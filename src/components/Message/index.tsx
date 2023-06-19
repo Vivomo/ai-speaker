@@ -1,11 +1,14 @@
 import { useEffect, useState, KeyboardEvent } from "react";
 import chatService from "@/utils/chatService";
-import { ActionIcon, Textarea } from "@mantine/core";
+import Link from "next/link";
+import { ActionIcon, Textarea, Popover, Button } from "@mantine/core";
 import * as chatStorage from "@/utils/chatStorage";
-import { IconSend, IconSendOff, IconEraser } from "@tabler/icons-react";
+import { IconSend, IconSendOff, IconEraser, IconDotsVertical } from "@tabler/icons-react";
+import { ThemeSwitch } from "../ThemeSwitch";
 
-import { MessageList } from "@/types";
+import { Assistant, MessageList } from "@/types";
 import clsx from "clsx";
+import { AssistantSelect } from '@/components/AssistantSelect';
 
 type Props = {
   sessionId: string;
@@ -15,6 +18,7 @@ export const Message = ({ sessionId }: Props) => {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<MessageList>([]);
+  const [assistant, setAssistant] = useState<Assistant>();
 
   const updateMessage = (msg: MessageList) => {
     setMessage(msg);
@@ -44,11 +48,18 @@ export const Message = ({ sessionId }: Props) => {
     }
   };
 
+  const onAssistantChange = (assistant: Assistant) => {
+    setAssistant(assistant);
+    chatStorage.updateSession(sessionId, {
+      assistant: assistant.id,
+    });
+  };
+
   const setSuggestion = (suggestion: string) => {
     if (suggestion === "") return;
     const len = message.length;
     const lastMessage = len ? message[len - 1] : null;
-    let newList: MessageList = [];
+    let newList: MessageList;
     if (lastMessage?.role === "assistant") {
       newList = [
         ...message.slice(0, len - 1),
@@ -90,13 +101,47 @@ export const Message = ({ sessionId }: Props) => {
     setLoading(true);
     chatService.getStream({
       prompt,
-      history: list.slice(-6),
+      options: assistant,
+      history: list.slice(-assistant?.max_log!),
     });
     setPrompt("");
   };
 
   return (
     <div className="h-screen flex flex-col items-center w-full">
+      <div
+        className={clsx([
+          "flex",
+          "justify-between",
+          "items-center",
+          "p-4",
+          "shadow-sm",
+          "h-[6rem]",
+        ])}
+      >
+        <Popover width={100} position="bottom" withArrow shadow="sm">
+          <Popover.Target>
+            <Button
+              size="sm"
+              variant="subtle"
+              className="px-1"
+              rightIcon={<IconDotsVertical size="1rem"/>}
+            >
+              AI 助理
+            </Button>
+          </Popover.Target>
+          <Popover.Dropdown>
+            <Link href="/assistant" className="no-underline text-green-600">
+              助理管理
+            </Link>
+          </Popover.Dropdown>
+        </Popover>
+        <AssistantSelect
+          value={assistant?.id!}
+          onChange={onAssistantChange}
+        />
+        <ThemeSwitch/>
+      </div>
       <div
         className={clsx([
           "flex-col",
