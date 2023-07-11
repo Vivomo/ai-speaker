@@ -1,14 +1,23 @@
 import { useEffect, useState, KeyboardEvent } from "react";
 import chatService from "@/utils/chatService";
 import Link from "next/link";
-import { ActionIcon, Textarea, Popover, Button } from "@mantine/core";
+import {
+  ActionIcon,
+  Loader,
+  Textarea,
+  useMantineColorScheme,
+  Button,
+  Popover,
+} from "@mantine/core";
 import * as chatStorage from "@/utils/chatStorage";
 import { IconSend, IconSendOff, IconEraser, IconDotsVertical } from "@tabler/icons-react";
 import { ThemeSwitch } from "../ThemeSwitch";
+import { Markdown } from "../Markdown";
 
 import { Assistant, MessageList } from "@/types";
 import clsx from "clsx";
 import { AssistantSelect } from '@/components/AssistantSelect';
+import { USERMAP } from "@/utils/constant";
 
 type Props = {
   sessionId: string;
@@ -19,6 +28,7 @@ export const Message = ({ sessionId }: Props) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<MessageList>([]);
   const [assistant, setAssistant] = useState<Assistant>();
+  const { colorScheme } = useMantineColorScheme();
 
   const updateMessage = (msg: MessageList) => {
     setMessage(msg);
@@ -152,34 +162,52 @@ export const Message = ({ sessionId }: Props) => {
           "px-8",
         ])}
       >
-        {message.map((item, idx) => (
-          <div
-            key={`${item.role}-${idx}`}
-            className={clsx(
-              {
-                flex: item.role === "user",
-                "flex-col": item.role === "user",
-                "items-end": item.role === "user",
-              },
-              "mt-4",
-            )}
-          >
-            <div>{item.role}</div>
+        {message.map((item, idx) => {
+          const isUser = item.role === "user";
+
+          return (
             <div
+              key={`${item.role}-${idx}`}
               className={clsx(
-                "rounded-md",
-                "shadow-md",
-                "px-4",
-                "py-2",
-                "mt-1",
-                "w-full",
-                "max-w-4xl",
+                {
+                  flex: item.role === "user",
+                  "flex-col": item.role === "user",
+                  "items-end": item.role === "user",
+                },
+                "mt-4",
               )}
             >
-              {item.content}
+              <div>
+                {USERMAP[item.role]}
+                {!isUser && idx === message.length - 1 && loading && (
+                  <Loader size="sm" variant="dots" className="ml-2" />
+                )}
+              </div>
+              <div
+                className={clsx(
+                  {
+                    "bg-gray-100": colorScheme === "light",
+                    "bg-zinc-700/40": colorScheme === "dark",
+                    "whitespace-break-spaces": isUser,
+                  },
+                  "rounded-md",
+                  "shadow-md",
+                  "px-4",
+                  "py-2",
+                  "mt-1",
+                  "w-full",
+                  "max-w-4xl",
+                )}
+              >
+                {isUser ? (
+                  <div>{item.content}</div>
+                ) : (
+                  <Markdown markdownText={item.content}/>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
       <div className="flex items-center w-3/5">
         <ActionIcon
