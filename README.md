@@ -1,4 +1,0 @@
-OPENAI_API_KEY=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
-
-
-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 jee
